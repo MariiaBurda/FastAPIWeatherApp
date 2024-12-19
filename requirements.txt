@@ -3,3 +3,5 @@ uvicorn
 httpx
 locust
 python-dotenv
+boto3
+aioboto3
