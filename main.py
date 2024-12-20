@@ -5,83 +5,13 @@ import os
 import json
 import aioboto3
 from datetime import datetime, timezone, timedelta
+from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCKET_NAME, DYNAMODB_TABLE, BASE_URL, WEATHER_API_KEY
+from services.s3 import check_cache, save_to_s3
+from services.dynamodb import log_weather_event
+from services.weather_api import fetch_weather
 
-load_dotenv()
 
 app = FastAPI()
-
-API_KEY = os.getenv("API_KEY")
-if not API_KEY:
-    raise RuntimeError("API_KEY is not set in the environment variables")
-
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.getenv("AWS_REGION")
-S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
-DYNAMODB_TABLE = os.getenv("DYNAMODB_TABLE")
-
-BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
-
-async def check_cache(city: str):
-    session = aioboto3.Session()
-    async with session.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION,
-    ) as s3:
-        try:
-            # get a list of objects that match the city_* pattern
-            response = await s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=f"{city}_")
-            if "Contents" not in response:
-                return None
-
-            # find the newest file
-            files = response["Contents"]
-            latest_file = max(files, key=lambda x: x["LastModified"])
-
-            # get data if last modification time is less than 5 minutes
-            last_modified = latest_file["LastModified"].replace(tzinfo=timezone.utc)
-            if datetime.now(timezone.utc) - last_modified < timedelta(minutes=5):
-                obj = await s3.get_object(Bucket=S3_BUCKET_NAME, Key=latest_file["Key"])
-                data = await obj["Body"].read()
-                return json.loads(data)
-            return None
-        except Exception as e:
-            print(f"Error checking cache: {e}")
-            return None
-
-
-async def log_weather_event(city: str, timestamp: str, s3_url: str):
-    session = aioboto3.Session()
-    async with session.client(
-        "dynamodb",
-        region_name=AWS_REGION,
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    ) as dynamodb:
-        await dynamodb.put_item(
-            TableName=DYNAMODB_TABLE,
-            Item={
-                "City": {"S": city},
-                "Timestamp": {"S": timestamp},
-                "S3URL": {"S": s3_url},
-            }
-        )
-
-async def save_to_s3(filename: str, data: dict):
-    async with aioboto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION,
-    ) as s3:
-        await s3.put_object(
-            Bucket=S3_BUCKET_NAME,
-            Key=filename,
-            Body=json.dumps(data),
-            ContentType="application/json",
-        )
 
 
 @app.get("/weather")
@@ -96,11 +26,7 @@ async def get_weather(city: str = Query(..., min_length=1)):
                 "description": cached_data["weather"][0]["description"],
             }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                BASE_URL,
-                params={"q": city, "appid": API_KEY, "units": "metric"},
-            )
+        response = await fetch_weather(city)
 
         if response.status_code == 200:
             data = response.json()
