@@ -4,6 +4,7 @@ from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, DYNAMOD
 
 
 async def log_weather_event(city: str, timestamp: str, s3_url: str):
+    """Logs a weather-related event to a DynamoDB table"""
     session = aioboto3.Session()
     async with session.client(
         "dynamodb",

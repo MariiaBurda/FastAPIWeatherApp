@@ -15,6 +15,10 @@ app = FastAPI()
 
 
 def format_weather_response(source, data):
+    """
+    Formats the weather data into a dictionary containing the source,
+    city name, temperature, and weather description.
+    """
     return {
         "source": source,
         "city": data.get("name", "Unknown City"),
@@ -25,6 +29,12 @@ def format_weather_response(source, data):
 
 @app.get("/weather")
 async def get_weather(city: str = Query(..., min_length=1)):
+    """
+    Handles GET requests to fetch weather data for a specified city.
+    Checks for cached data first, retrieves data from the API if unavailable, and stores the result in S3
+    along with a log entry in DynamoDB.
+    Returns a formatted weather response or raises an appropriate HTTP error for failures.
+    """
     try:
         cached_data = await check_cache(city)
         if cached_data:

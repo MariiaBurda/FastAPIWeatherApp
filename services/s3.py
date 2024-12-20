@@ -7,6 +7,9 @@ from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCK
 
 
 async def check_cache(city: str):
+    """
+    Checks for recently cached weather data in S3 for a given city and returns it if the file is less than 5 minutes old. Returns None if no valid cache exists.
+    """
     session = aioboto3.Session()
     async with session.client(
         "s3",
@@ -38,6 +41,9 @@ async def check_cache(city: str):
 
 
 async def save_to_s3(filename: str, data: dict):
+    """
+    Saves the given data as a JSON object to S3 with the specified filename.
+    """
     async with aioboto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY_ID,
