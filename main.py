@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 
 import httpx
@@ -13,17 +14,21 @@ from services.weather_api import fetch_weather
 app = FastAPI()
 
 
+def format_weather_response(source, data):
+    return {
+        "source": source,
+        "city": data.get("name", "Unknown City"),
+        "temperature": data.get("main", {}).get("temp", "Unknown Temperature"),
+        "description": data.get("weather", [{}])[0].get("description", "No Description Available"),
+    }
+
+
 @app.get("/weather")
 async def get_weather(city: str = Query(..., min_length=1)):
     try:
         cached_data = await check_cache(city)
         if cached_data:
-            return {
-                "source": "cache",
-                "city": cached_data["name"],
-                "temperature": cached_data["main"]["temp"],
-                "description": cached_data["weather"][0]["description"],
-            }
+            return format_weather_response("cache", cached_data)
 
         response = await fetch_weather(city)
 
@@ -33,16 +38,14 @@ async def get_weather(city: str = Query(..., min_length=1)):
             filename = f"{city}_{timestamp}.json"
             s3_url = f"s3://{S3_BUCKET_NAME}/{filename}"
 
-            await save_to_s3(filename, data)
-            await log_weather_event(city, timestamp, s3_url)
+            await asyncio.gather(
+                save_to_s3(filename, data),
+                log_weather_event(city, timestamp, s3_url),
+            )
 
-            return {
-                "city": data["name"],
-                "temperature": data["main"]["temp"],
-                "description": data["weather"][0]["description"],
-                "s3_file": filename,
-                "s3_url": s3_url,
-            }
+            return format_weather_response(
+                "api", data,
+            )
         elif response.status_code == 404:
             raise HTTPException(status_code=404, detail="City not found")
         else:

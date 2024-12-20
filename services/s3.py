@@ -34,7 +34,6 @@ async def check_cache(city: str):
                 return json.loads(data)
             return None
         except Exception as e:
-            print(f"Error checking cache: {e}")
             return None
 
 
