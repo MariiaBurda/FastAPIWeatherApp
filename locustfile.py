@@ -7,3 +7,5 @@ class WeatherAppUser(HttpUser):
     @task
     def get_weather(self):
         self.client.get("/weather?city=Kyiv")
+        self.client.get("/weather?city=London")
+        self.client.get("/weather?city=New York")
