@@ -1,5 +1,5 @@
 import httpx
-import os
+
 from config import WEATHER_API_KEY, BASE_URL
 
 

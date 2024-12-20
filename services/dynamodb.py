@@ -1,5 +1,6 @@
-from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,DYNAMODB_TABLE
 import aioboto3
+
+from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, DYNAMODB_TABLE
 
 
 async def log_weather_event(city: str, timestamp: str, s3_url: str):
@@ -16,5 +17,5 @@ async def log_weather_event(city: str, timestamp: str, s3_url: str):
                 "City": {"S": city},
                 "Timestamp": {"S": timestamp},
                 "S3URL": {"S": s3_url},
-            }
+            },
         )

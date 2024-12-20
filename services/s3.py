@@ -1,6 +1,8 @@
-from datetime import datetime, timezone, timedelta
 import json
+from datetime import datetime, timezone, timedelta
+
 import aioboto3
+
 from config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCKET_NAME
 
 
@@ -14,7 +16,9 @@ async def check_cache(city: str):
     ) as s3:
         try:
             # get a list of objects that match the city_* pattern
-            response = await s3.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=f"{city}_")
+            response = await s3.list_objects_v2(
+                Bucket=S3_BUCKET_NAME, Prefix=f"{city}_"
+            )
             if "Contents" not in response:
                 return None
 
